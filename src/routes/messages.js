@@ -1,0 +1,44 @@
+const express = require('express');
+const prisma = require('../db');
+const { requireAuth } = require('../auth');
+
+const router = express.Router();
+
+router.use(requireAuth);
+
+router.get('/', async (req, res) => {
+  const { read, page = '1', limit = '20' } = req.query;
+  const where = {};
+  if (read === 'true')  where.isRead = true;
+  if (read === 'false') where.isRead = false;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const [messages, total] = await Promise.all([
+    prisma.contactMessage.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: parseInt(limit) }),
+    prisma.contactMessage.count({ where }),
+  ]);
+  res.json({ messages, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+});
+
+router.get('/:id', async (req, res) => {
+  const msg = await prisma.contactMessage.findUnique({ where: { id: req.params.id } });
+  if (!msg) return res.status(404).json({ error: 'Not found' });
+  if (!msg.isRead) await prisma.contactMessage.update({ where: { id: req.params.id }, data: { isRead: true } });
+  res.json({ ...msg, isRead: true });
+});
+
+router.patch('/mark-all-read', async (_req, res) => {
+  await prisma.contactMessage.updateMany({ where: { isRead: false }, data: { isRead: true } });
+  res.json({ ok: true });
+});
+
+router.patch('/:id', async (req, res) => {
+  const msg = await prisma.contactMessage.update({ where: { id: req.params.id }, data: { isRead: req.body.isRead } });
+  res.json(msg);
+});
+
+router.delete('/:id', async (req, res) => {
+  await prisma.contactMessage.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+module.exports = router;
