@@ -1,6 +1,6 @@
 const express = require('express');
 const prisma = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireRole } = require('../auth');
 
 const router = express.Router();
 
@@ -9,8 +9,15 @@ router.use(requireAuth);
 router.get('/', async (req, res) => {
   const { read, page = '1', limit = '20' } = req.query;
   const where = {};
-  if (read === 'true')  where.isRead = true;
-  if (read === 'false') where.isRead = false;
+
+  // RECEPTIONIST can only see unread messages
+  if (req.admin.role === 'RECEPTIONIST') {
+    where.isRead = false;
+  } else {
+    if (read === 'true')  where.isRead = true;
+    if (read === 'false') where.isRead = false;
+  }
+
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [messages, total] = await Promise.all([
     prisma.contactMessage.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: parseInt(limit) }),
@@ -36,7 +43,8 @@ router.patch('/:id', async (req, res) => {
   res.json(msg);
 });
 
-router.delete('/:id', async (req, res) => {
+// Only SUPER_ADMIN and MANAGER can delete messages
+router.delete('/:id', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
   await prisma.contactMessage.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

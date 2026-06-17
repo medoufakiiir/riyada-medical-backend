@@ -1,11 +1,13 @@
+// LOCAL DEV ONLY — do not commit changes to this file as the production schema
+// Production uses schema.prisma (PostgreSQL on Railway/Aiven)
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model AdminUser {
@@ -13,8 +15,7 @@ model AdminUser {
   email     String   @unique
   password  String
   name      String
-  role      String   @default("SUPER_ADMIN")
-  isActive  Boolean  @default(true)
+  role      String   @default("admin")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -115,8 +116,6 @@ model ChatbotSession {
 
   messages     ChatbotMessage[]
   appointments ChatbotAppointment[]
-
-  @@index([startedAt])
 }
 
 model ChatbotMessage {
@@ -127,9 +126,6 @@ model ChatbotMessage {
   content   String
   language  String   @default("ar")
   createdAt DateTime @default(now())
-
-  @@index([sessionId])
-  @@index([createdAt])
 }
 
 model ChatbotAppointment {
@@ -147,7 +143,4 @@ model ChatbotAppointment {
   status        String   @default("pending")
   source        String   @default("chatbot")
   createdAt     DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([status])
 }

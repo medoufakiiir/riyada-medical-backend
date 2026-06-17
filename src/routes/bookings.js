@@ -1,6 +1,6 @@
 const express = require('express');
 const prisma = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireRole } = require('../auth');
 
 const router = express.Router();
 
@@ -9,7 +9,14 @@ router.use(requireAuth);
 router.get('/', async (req, res) => {
   const { status, search, page = '1', limit = '20' } = req.query;
   const where = {};
-  if (status && status !== 'all') where.status = status;
+
+  // RECEPTIONIST can only see pending bookings
+  if (req.admin.role === 'RECEPTIONIST') {
+    where.status = 'pending';
+  } else if (status && status !== 'all') {
+    where.status = status;
+  }
+
   if (search) {
     where.OR = [
       { parentName: { contains: search } },
@@ -41,7 +48,8 @@ router.patch('/:id', async (req, res) => {
   res.json(booking);
 });
 
-router.delete('/:id', async (req, res) => {
+// Only SUPER_ADMIN and MANAGER can delete bookings
+router.delete('/:id', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
   await prisma.booking.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

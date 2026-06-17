@@ -1,11 +1,22 @@
 const express = require('express');
 const prisma = require('../db');
+const { bookingEmail, contactEmail } = require('../email');
 
 const router = express.Router();
 
 function genRef() {
   return 'RYD-' + Math.random().toString(36).slice(2, 8).toUpperCase();
 }
+
+// GET /services (public — returns active services)
+router.get('/services', async (_req, res) => {
+  const services = await prisma.service.findMany({
+    where: { isActive: true },
+    orderBy: { order: 'asc' },
+    select: { slug: true, titleEn: true, titleAr: true, descEn: true, descAr: true, order: true },
+  });
+  res.json(services);
+});
 
 // POST /bookings
 router.post('/bookings', async (req, res) => {
@@ -19,6 +30,9 @@ router.post('/bookings', async (req, res) => {
   const booking = await prisma.booking.create({
     data: { ref, parentName, childName, childAge: childAge || '', phone, email: email || '', service, package: pkg || '', date, time, notes: notes || '' },
   });
+
+  bookingEmail(booking).catch(() => {});
+
   res.status(201).json({ booking, ref: booking.ref });
 });
 
@@ -31,6 +45,9 @@ router.post('/contact', async (req, res) => {
   const msg = await prisma.contactMessage.create({
     data: { name, email, phone: phone || '', service: service || '', childAge: childAge || '', concern: concern || '', message },
   });
+
+  contactEmail(msg).catch(() => {});
+
   res.status(201).json({ message: msg });
 });
 
