@@ -68,3 +68,4 @@ app.get('/test-email', async (_req, res) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Riyada Admin API listening on http://localhost:${PORT}`));
+// deployed Thu Jun 18 01:19:02 AM +01 2026
