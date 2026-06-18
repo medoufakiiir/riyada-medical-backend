@@ -4,12 +4,11 @@ const { getSystemPrompt } = require('../chatbot/system-prompt');
 
 const router = express.Router();
 
-// Auto-detect provider: Groq (free) → Gemini → DeepSeek
 function getProvider() {
   if (process.env.GROQ_API_KEY) return {
     url: 'https://api.groq.com/openai/v1/chat/completions',
     key: process.env.GROQ_API_KEY,
-    model: 'gemma2-9b-it',
+    model: 'llama-3.1-70b-versatile',
     name: 'groq',
   };
   if (process.env.GEMINI_API_KEY) return {
@@ -32,17 +31,17 @@ const tools = [
     type: 'function',
     function: {
       name: 'book_appointment',
-      description: 'Save appointment request when ALL required info is collected.',
+      description: 'ONLY call this after you have explicitly collected AND confirmed ALL 5 required fields from the user: parent_name, child_name, child_age, service, phone. Do NOT call this if any field is missing or was not directly provided by the user.',
       parameters: {
         type: 'object',
         properties: {
-          parent_name:    { type: 'string', description: 'Full name of parent/guardian' },
-          child_name:     { type: 'string', description: 'Name of the child' },
-          child_age:      { type: 'string', description: 'Age of the child' },
-          service:        { type: 'string', description: 'Therapy service interested in' },
-          phone:          { type: 'string', description: 'Contact phone/WhatsApp number' },
-          preferred_time: { type: 'string', description: 'Preferred appointment time/days' },
-          notes:          { type: 'string', description: 'Additional notes or concerns' },
+          parent_name:    { type: 'string', description: 'Full name of parent — MUST be explicitly provided by user' },
+          child_name:     { type: 'string', description: 'Child name — MUST be explicitly provided by user' },
+          child_age:      { type: 'string', description: 'Child age — MUST be explicitly provided by user' },
+          service:        { type: 'string', description: 'Therapy service' },
+          phone:          { type: 'string', description: 'Phone number — MUST be explicitly provided by user' },
+          preferred_time: { type: 'string', description: 'Preferred days or times' },
+          notes:          { type: 'string', description: 'Additional notes' },
           language:       { type: 'string', enum: ['ar', 'en'], description: 'Conversation language' },
         },
         required: ['parent_name', 'child_name', 'child_age', 'service', 'phone'],
@@ -50,6 +49,20 @@ const tools = [
     },
   },
 ];
+
+// Strip characters from wrong scripts (CJK, Vietnamese diacritics, etc.)
+function cleanResponse(text) {
+  return text
+    .replace(/[一-鿿㐀-䶿豈-﫿]/g, '')  // CJK
+    .replace(/[　-〿぀-ゟ゠-ヿ]/g, '')   // Japanese
+    .replace(/[가-힯]/g, '')                               // Korean
+    .replace(/[đĐơƠưƯăĂ]/g, '')                                   // Vietnamese
+    .replace(/để|của|với|và|không|này|những/g, '')                  // Vietnamese words
+    .replace(/我们|你好|的|了|在|是|有|这|那|什么|可以/g, '')           // Chinese words
+    .replace(/，/g, '،')                                            // Chinese comma → Arabic comma
+    .replace(/\s{2,}/g, ' ')                                       // collapse double spaces
+    .trim();
+}
 
 function detectLanguage(messages) {
   const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content ?? '';
@@ -83,12 +96,16 @@ async function saveMsg({ sessionId, role, content, language }) {
 }
 
 async function saveAppointment(data, sessionId) {
+  if (!data.parent_name || !data.child_name || !data.phone) {
+    console.error('[saveAppointment] Missing required fields — blocked');
+    return false;
+  }
   try {
     await prisma.chatbotAppointment.create({
       data: {
         sessionId: sessionId ?? null,
-        parentName: data.parent_name, childName: data.child_name, childAge: data.child_age,
-        service: data.service, phone: data.phone,
+        parentName: data.parent_name, childName: data.child_name, childAge: data.child_age || '',
+        service: data.service || '', phone: data.phone,
         preferredTime: data.preferred_time ?? null, notes: data.notes ?? null,
         language: data.language ?? 'ar', status: 'pending', source: 'chatbot',
       },
@@ -105,6 +122,7 @@ async function callLLM(provider, messages, useTools = true) {
       model: provider.model,
       messages,
       max_tokens: 1024,
+      temperature: 0.3,
       ...(useTools && { tools, tool_choice: 'auto' }),
     }),
   });
@@ -143,7 +161,6 @@ router.post('/', async (req, res) => {
 
     if (!choice) return res.status(500).json({ error: 'No response from AI' });
 
-    // Handle tool calls (appointment booking)
     if (choice.tool_calls?.length > 0) {
       const toolCall = choice.tool_calls[0];
       if (toolCall.function.name === 'book_appointment') {
@@ -157,18 +174,20 @@ router.post('/', async (req, res) => {
             role: 'tool',
             tool_call_id: toolCall.id,
             content: saved
-              ? 'Appointment saved successfully.'
-              : 'Failed to save. Ask the user to try again or contact us directly.',
+              ? 'Appointment saved successfully. Tell the user their appointment is booked and the team will contact them within 24 hours.'
+              : 'Booking FAILED because required information is missing. Ask the user for: parent full name, child name, child age, phone number. Collect them one by one.',
           },
         ], false);
 
-        const replyText = followUp.choices?.[0]?.message?.content ?? '';
+        const raw = followUp.choices?.[0]?.message?.content ?? '';
+        const replyText = cleanResponse(raw);
         if (replyText) await saveMsg({ sessionId: session_id, role: 'assistant', content: replyText, language });
         return res.json({ content: [{ type: 'text', text: replyText }] });
       }
     }
 
-    const replyText = choice.content ?? '';
+    const raw = choice.content ?? '';
+    const replyText = cleanResponse(raw);
     if (replyText) await saveMsg({ sessionId: session_id, role: 'assistant', content: replyText, language });
     res.json({ content: [{ type: 'text', text: replyText }] });
   } catch (error) {
