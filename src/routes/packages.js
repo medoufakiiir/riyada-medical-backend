@@ -1,10 +1,11 @@
 const express = require('express');
 const prisma = require('../db');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireRole } = require('../auth');
 
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(requireRole('SUPER_ADMIN'));
 
 router.get('/', async (_req, res) => {
   const packages = await prisma.package.findMany({ orderBy: { order: 'asc' } });
