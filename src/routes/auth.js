@@ -27,11 +27,18 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
   const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  res.json({
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    mustChangePassword: user.mustChangePassword,
+  });
 });
 
 router.get('/me', requireAuth, async (req, res) => {
-  const user = await prisma.adminUser.findUnique({ where: { id: req.admin.id }, select: { id: true, email: true, name: true, role: true } });
+  const user = await prisma.adminUser.findUnique({
+    where: { id: req.admin.id },
+    select: { id: true, email: true, name: true, role: true, mustChangePassword: true },
+  });
   res.json(user);
 });
 
@@ -45,7 +52,10 @@ router.post('/change-password', requireAuth, async (req, res) => {
   if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
   const hashed = await bcrypt.hash(newPassword, 12);
-  await prisma.adminUser.update({ where: { id: req.admin.id }, data: { password: hashed } });
+  await prisma.adminUser.update({
+    where: { id: req.admin.id },
+    data: { password: hashed, mustChangePassword: false },
+  });
   res.json({ ok: true });
 });
 

@@ -1,12 +1,15 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
+function generatePassword() {
+  return crypto.randomBytes(12).toString('base64url');
+}
+
 async function main() {
   // ── Admin users (RBAC) ──────────────────────────────────────────
-  const hash = await bcrypt.hash('Riyada@2025', 12);
-
   const accounts = [
     { email: 'it@nash-consulting.net',          name: 'IT Admin',        role: 'SUPER_ADMIN' },
     { email: 'manager1@riyada-ventures.com',     name: 'Manager 1',      role: 'MANAGER' },
@@ -15,13 +18,34 @@ async function main() {
     { email: 'reception2@riyada-ventures.com',   name: 'Receptionist 2', role: 'RECEPTIONIST' },
   ];
 
+  console.log('\n══════════════════════════════════════════');
+  console.log('  SEEDED ACCOUNT CREDENTIALS (one-time)');
+  console.log('══════════════════════════════════════════');
+
   for (const a of accounts) {
-    await prisma.adminUser.upsert({
-      where: { email: a.email },
-      update: { name: a.name, role: a.role },
-      create: { email: a.email, password: hash, name: a.name, role: a.role },
-    });
+    const existing = await prisma.adminUser.findUnique({ where: { email: a.email } });
+    if (existing) {
+      await prisma.adminUser.update({
+        where: { email: a.email },
+        data: { name: a.name, role: a.role, mustChangePassword: true },
+      });
+      console.log(`  ✓ ${a.email} (${a.role}) — updated, password unchanged, must change on next login`);
+    } else {
+      const password = process.env[`SEED_PASSWORD_${a.role}`] || generatePassword();
+      const hash = await bcrypt.hash(password, 12);
+      await prisma.adminUser.create({
+        data: { email: a.email, password: hash, name: a.name, role: a.role, mustChangePassword: true },
+      });
+      console.log(`  ✓ ${a.email} (${a.role}) — created with password: ${password}`);
+    }
   }
+
+  console.log('══════════════════════════════════════════');
+  console.log('  ⚠  Save these passwords NOW — they');
+  console.log('     will NOT be shown again.');
+  console.log('  ⚠  All accounts must change password');
+  console.log('     on first login.');
+  console.log('══════════════════════════════════════════\n');
 
   // ── Services ────────────────────────────────────────────────────
   const services = [
