@@ -141,6 +141,12 @@ router.post('/', async (req, res) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'Invalid messages' });
     }
+    if (messages.length > 20) {
+      return res.status(400).json({ error: 'Conversation too long. Please start a new chat.' });
+    }
+    if (messages.some(m => typeof m.content === 'string' && m.content.length > 2000)) {
+      return res.status(400).json({ error: 'Message too long. Please shorten your message.' });
+    }
 
     const provider = getProvider();
     if (!provider) return res.status(500).json({ error: 'Chatbot not configured' });

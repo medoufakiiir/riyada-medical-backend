@@ -2,8 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
+
+app.set('trust proxy', 1);
 
 const PROD_ORIGINS = ['https://rc.riyada-ventures.com'];
 const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173'];
@@ -14,7 +17,26 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
+const formLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
 app.use('/auth', require('./routes/auth'));
+app.use('/bookings', formLimiter);
+app.use('/contact', formLimiter);
+app.use('/chat', chatLimiter);
 app.use('/',     require('./routes/public'));
 app.use('/admin/dashboard', require('./routes/dashboard'));
 app.use('/admin/bookings',  require('./routes/bookings'));
