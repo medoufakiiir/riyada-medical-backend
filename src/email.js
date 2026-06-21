@@ -1,6 +1,15 @@
 const BREVO_KEY    = process.env.BREVO_API_KEY;
 const ADMIN_EMAIL  = process.env.ADMIN_EMAIL   || 'admin@riyada.com';
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@riyada.com';
+
+function getRecipients() {
+  const raw = process.env.NOTIFICATION_EMAILS;
+  if (raw) {
+    const list = raw.split(',').map(e => e.trim()).filter(Boolean);
+    if (list.length > 0) return list.map(email => ({ email }));
+  }
+  return [{ email: ADMIN_EMAIL }];
+}
 const SITE_URL     = process.env.SITE_URL      || 'https://rc.riyada-ventures.com';
 const LOGO_URL     = `${SITE_URL}/logo/Riyada%20Center%20Logo%20Souce-01.png`;
 const ADMIN_URL    = `${SITE_URL}/admin`;
@@ -22,7 +31,7 @@ async function send(subject, htmlContent) {
       headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sender: { name: 'Riyada Center', email: SENDER_EMAIL },
-        to: [{ email: ADMIN_EMAIL }],
+        to: getRecipients(),
         subject,
         htmlContent,
       }),
