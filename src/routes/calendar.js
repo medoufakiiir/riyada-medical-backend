@@ -15,13 +15,7 @@ const STATUS_COLORS = {
 // ── GET /admin/calendar/bookings — FullCalendar event feed ──
 router.get('/bookings', async (req, res) => {
   try {
-    const { start, end } = req.query;
-    const where = {};
-    if (start && end) {
-      where.date = { gte: start.toString().slice(0, 10), lte: end.toString().slice(0, 10) };
-    }
-
-    const bookings = await prisma.booking.findMany({ where, orderBy: { date: 'asc' } });
+    const bookings = await prisma.booking.findMany({ orderBy: { date: 'asc' } });
 
     const events = bookings.map(b => {
       const startDt = `${b.date}T${b.time || '09:00'}:00`;
