@@ -10,7 +10,6 @@ router.get('/', async (req, res) => {
   const { status, search, page = '1', limit = '20' } = req.query;
   const where = {};
 
-  // RECEPTIONIST can only see pending bookings; MARKETING sees all (read-only enforced at route level)
   if (req.admin.role === 'RECEPTIONIST') {
     where.status = 'pending';
   } else if (status && status !== 'all') {
@@ -33,28 +32,7 @@ router.get('/', async (req, res) => {
   res.json({ bookings, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
 });
 
-router.get('/:id', async (req, res) => {
-  const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
-  if (!booking) return res.status(404).json({ error: 'Not found' });
-  res.json(booking);
-});
-
-router.patch('/:id', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (req, res) => {
-  const { status, adminNotes } = req.body;
-  const booking = await prisma.booking.update({
-    where: { id: req.params.id },
-    data: { ...(status && { status }), ...(adminNotes !== undefined && { adminNotes }) },
-  });
-  res.json(booking);
-});
-
-// Only SUPER_ADMIN and MANAGER can delete bookings
-router.delete('/:id', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
-  await prisma.booking.delete({ where: { id: req.params.id } });
-  res.json({ ok: true });
-});
-
-// Bulk delete
+// Static routes MUST be before /:id
 router.post('/bulk-delete', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No IDs provided' });
@@ -62,7 +40,6 @@ router.post('/bulk-delete', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, r
   res.json({ ok: true, deleted: ids.length });
 });
 
-// Export as ICS (calendar)
 router.get('/export/ics', async (req, res) => {
   const bookings = await prisma.booking.findMany({ where: { status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } });
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Riyada Center//Bookings//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
@@ -84,6 +61,27 @@ router.get('/export/ics', async (req, res) => {
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename=riyada-bookings.ics');
   res.send(lines.join('\r\n'));
+});
+
+// Parameterized routes after static ones
+router.get('/:id', async (req, res) => {
+  const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+  if (!booking) return res.status(404).json({ error: 'Not found' });
+  res.json(booking);
+});
+
+router.patch('/:id', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (req, res) => {
+  const { status, adminNotes } = req.body;
+  const booking = await prisma.booking.update({
+    where: { id: req.params.id },
+    data: { ...(status && { status }), ...(adminNotes !== undefined && { adminNotes }) },
+  });
+  res.json(booking);
+});
+
+router.delete('/:id', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
+  await prisma.booking.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
 });
 
 module.exports = router;

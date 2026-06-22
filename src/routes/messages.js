@@ -26,16 +26,17 @@ router.get('/', async (req, res) => {
   res.json({ messages, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
 });
 
+// mark-all-read MUST be before /:id to avoid Express treating "mark-all-read" as an id
+router.patch('/mark-all-read', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (_req, res) => {
+  await prisma.contactMessage.updateMany({ where: { isRead: false }, data: { isRead: true } });
+  res.json({ ok: true });
+});
+
 router.get('/:id', async (req, res) => {
   const msg = await prisma.contactMessage.findUnique({ where: { id: req.params.id } });
   if (!msg) return res.status(404).json({ error: 'Not found' });
   if (!msg.isRead) await prisma.contactMessage.update({ where: { id: req.params.id }, data: { isRead: true } });
   res.json({ ...msg, isRead: true });
-});
-
-router.patch('/mark-all-read', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (_req, res) => {
-  await prisma.contactMessage.updateMany({ where: { isRead: false }, data: { isRead: true } });
-  res.json({ ok: true });
 });
 
 router.patch('/:id', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (req, res) => {

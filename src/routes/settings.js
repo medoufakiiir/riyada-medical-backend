@@ -4,6 +4,11 @@ const { requireAuth, requireRole } = require('../auth');
 
 const router = express.Router();
 
+function safeParseArray(val) {
+  try { const arr = JSON.parse(val); return Array.isArray(arr) ? arr : []; }
+  catch { return []; }
+}
+
 router.use(requireAuth);
 
 // Site settings — SUPER_ADMIN only
@@ -27,7 +32,7 @@ router.patch('/', requireRole('SUPER_ADMIN'), async (req, res) => {
 router.get('/permissions', async (req, res) => {
   if (req.admin.role === 'SUPER_ADMIN') return res.json({ chatbot: true, analytics: true, contacts: true });
   const setting = await prisma.siteSetting.findUnique({ where: { key: 'chatbotDisabledUsers' } });
-  const disabled = setting ? JSON.parse(setting.value) : [];
+  const disabled = setting ? safeParseArray(setting.value) : [];
   const chatbot = !disabled.includes(req.admin.id);
   if (req.admin.role === 'MARKETING') {
     return res.json({ chatbot, analytics: true, contacts: true });
@@ -43,7 +48,7 @@ router.get('/permissions/chatbot', requireRole('SUPER_ADMIN'), async (_req, res)
     orderBy: { role: 'asc' },
   });
   const setting = await prisma.siteSetting.findUnique({ where: { key: 'chatbotDisabledUsers' } });
-  const disabled = setting ? JSON.parse(setting.value) : [];
+  const disabled = setting ? safeParseArray(setting.value) : [];
   const result = users.map(u => ({ ...u, chatbotEnabled: !disabled.includes(u.id) }));
   res.json(result);
 });
@@ -52,7 +57,7 @@ router.get('/permissions/chatbot', requireRole('SUPER_ADMIN'), async (_req, res)
 router.patch('/permissions/chatbot/:userId', requireRole('SUPER_ADMIN'), async (req, res) => {
   const { enabled } = req.body;
   const setting = await prisma.siteSetting.findUnique({ where: { key: 'chatbotDisabledUsers' } });
-  let disabled = setting ? JSON.parse(setting.value) : [];
+  let disabled = setting ? safeParseArray(setting.value) : [];
   if (enabled) {
     disabled = disabled.filter(id => id !== req.params.userId);
   } else {
