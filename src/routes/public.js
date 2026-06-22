@@ -24,6 +24,16 @@ router.post('/bookings', async (req, res) => {
   if (!parentName || !childName || !phone || !service || !date || !time) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  const nameRegex = /^[\p{L}\s'-]{2,50}$/u;
+  const phoneClean = (phone || '').replace(/[\s\-()]/g, '');
+  const phoneRegex = /^(\+966|05|5)\d{8}$/;
+  const age = parseInt(childAge);
+
+  if (!nameRegex.test(childName.trim())) return res.status(400).json({ error: 'Invalid child name' });
+  if (!nameRegex.test(parentName.trim())) return res.status(400).json({ error: 'Invalid parent name' });
+  if (!phoneRegex.test(phoneClean)) return res.status(400).json({ error: 'Invalid phone number' });
+  if (childAge && (isNaN(age) || age < 1 || age > 18)) return res.status(400).json({ error: 'Invalid age' });
   let ref = genRef();
   while (await prisma.booking.findUnique({ where: { ref } })) ref = genRef();
 
