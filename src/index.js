@@ -15,7 +15,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? PROD_ORIGINS : [...PROD_ORIGINS, ...DEV_ORIGINS],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -33,10 +33,28 @@ const formLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again later.' },
 });
 
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests.' },
+});
+
+const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests.' },
+});
+
 app.use('/auth', require('./routes/auth'));
 app.use('/bookings', formLimiter);
 app.use('/contact', formLimiter);
 app.use('/chat', chatLimiter);
+app.use('/track', trackLimiter);
+app.use('/admin', adminLimiter);
 app.use('/',     require('./routes/public'));
 app.use('/admin/dashboard', require('./routes/dashboard'));
 app.use('/admin/bookings',  require('./routes/bookings'));

@@ -35,6 +35,8 @@ router.patch('/mark-all-read', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONI
 router.get('/:id', async (req, res) => {
   const msg = await prisma.contactMessage.findUnique({ where: { id: req.params.id } });
   if (!msg) return res.status(404).json({ error: 'Not found' });
+  if (req.admin.role === 'RECEPTIONIST' && msg.isRead) return res.status(403).json({ error: 'Access denied' });
+  if (req.admin.role === 'MARKETING') return res.status(403).json({ error: 'Access denied' });
   if (!msg.isRead) await prisma.contactMessage.update({ where: { id: req.params.id }, data: { isRead: true } });
   res.json({ ...msg, isRead: true });
 });

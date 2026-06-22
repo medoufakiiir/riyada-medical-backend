@@ -40,7 +40,7 @@ router.post('/bulk-delete', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, r
   res.json({ ok: true, deleted: ids.length });
 });
 
-router.get('/export/ics', async (req, res) => {
+router.get('/export/ics', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
   const bookings = await prisma.booking.findMany({ where: { status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } });
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Riyada Center//Bookings//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
   for (const b of bookings) {

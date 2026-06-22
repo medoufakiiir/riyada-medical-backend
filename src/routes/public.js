@@ -27,7 +27,7 @@ router.post('/bookings', async (req, res) => {
 
   const nameRegex = /^[\p{L}\s'-]{2,50}$/u;
   const phoneClean = (phone || '').replace(/[\s\-()]/g, '');
-  const phoneRegex = /^(\+966|05|5)\d{8}$/;
+  const phoneRegex = /^(\+9665\d{8}|05\d{8})$/;
   const age = parseInt(childAge);
 
   if (!nameRegex.test(childName.trim())) return res.status(400).json({ error: 'Invalid child name' });
