@@ -51,4 +51,17 @@ router.post('/contact', async (req, res) => {
   res.status(201).json({ message: msg });
 });
 
+// POST /track — lightweight page view tracking
+router.post('/track', async (req, res) => {
+  try {
+    const { path } = req.body;
+    if (!path) return res.status(400).json({ error: 'Missing path' });
+    const ua = req.headers['user-agent'] || '';
+    const device = /Mobile|Android|iPhone/i.test(ua) ? 'mobile' : 'desktop';
+    const referrer = req.headers.referer || req.body.referrer || '';
+    await prisma.pageView.create({ data: { path, referrer, device } });
+    res.json({ ok: true });
+  } catch { res.json({ ok: true }); }
+});
+
 module.exports = router;

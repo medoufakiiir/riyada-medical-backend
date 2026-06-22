@@ -133,6 +133,18 @@ model ChatbotMessage {
   @@index([createdAt])
 }
 
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String   @default("")
+  country   String   @default("")
+  device    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path])
+}
+
 model ChatbotAppointment {
   id            String   @id @default(cuid())
   sessionId     String?
