@@ -12,15 +12,27 @@ const STATUS_COLORS = {
   completed: '#3355EE',
 };
 
+function to24h(time) {
+  if (!time) return '09:00';
+  // Already 24h format like "14:30"
+  if (!time.toLowerCase().includes('am') && !time.toLowerCase().includes('pm')) return time;
+  const [timePart, ampm] = time.trim().split(/\s+/);
+  let [h, m] = timePart.split(':').map(Number);
+  if (ampm.toLowerCase() === 'pm' && h !== 12) h += 12;
+  if (ampm.toLowerCase() === 'am' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+}
+
 // ── GET /admin/calendar/bookings — FullCalendar event feed ──
 router.get('/bookings', async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({ orderBy: { date: 'asc' } });
 
     const events = bookings.map(b => {
-      const startDt = `${b.date}T${b.time || '09:00'}:00`;
-      const endH = String(parseInt((b.time || '09:00').split(':')[0]) + 1).padStart(2, '0');
-      const endDt = `${b.date}T${endH}:${(b.time || '09:00').split(':')[1] || '00'}:00`;
+      const t24 = to24h(b.time);
+      const startDt = `${b.date}T${t24}:00`;
+      const endH = String(parseInt(t24.split(':')[0]) + 1).padStart(2, '0');
+      const endDt = `${b.date}T${endH}:${t24.split(':')[1]}:00`;
       return {
         id: b.id,
         title: `${b.childName} — ${b.service}`,
@@ -203,9 +215,10 @@ router.post('/google/sync', async (req, res) => {
 
     let synced = 0;
     for (const b of bookings) {
-      const startDt = `${b.date}T${b.time || '09:00'}:00`;
-      const endH = String(parseInt((b.time || '09:00').split(':')[0]) + 1).padStart(2, '0');
-      const endDt = `${b.date}T${endH}:${(b.time || '09:00').split(':')[1] || '00'}:00`;
+      const t24 = to24h(b.time);
+      const startDt = `${b.date}T${t24}:00`;
+      const endH = String(parseInt(t24.split(':')[0]) + 1).padStart(2, '0');
+      const endDt = `${b.date}T${endH}:${t24.split(':')[1]}:00`;
 
       const event = {
         summary: `${b.childName} — ${b.service}`,
@@ -357,9 +370,10 @@ router.post('/microsoft/sync', async (req, res) => {
 
     let synced = 0;
     for (const b of bookings) {
-      const startDt = `${b.date}T${b.time || '09:00'}:00`;
-      const endH = String(parseInt((b.time || '09:00').split(':')[0]) + 1).padStart(2, '0');
-      const endDt = `${b.date}T${endH}:${(b.time || '09:00').split(':')[1] || '00'}:00`;
+      const t24 = to24h(b.time);
+      const startDt = `${b.date}T${t24}:00`;
+      const endH = String(parseInt(t24.split(':')[0]) + 1).padStart(2, '0');
+      const endDt = `${b.date}T${endH}:${t24.split(':')[1]}:00`;
 
       const event = {
         subject: `${b.childName} — ${b.service}`,
