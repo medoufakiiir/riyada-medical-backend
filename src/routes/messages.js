@@ -33,12 +33,12 @@ router.get('/:id', async (req, res) => {
   res.json({ ...msg, isRead: true });
 });
 
-router.patch('/mark-all-read', async (_req, res) => {
+router.patch('/mark-all-read', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (_req, res) => {
   await prisma.contactMessage.updateMany({ where: { isRead: false }, data: { isRead: true } });
   res.json({ ok: true });
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'), async (req, res) => {
   const msg = await prisma.contactMessage.update({ where: { id: req.params.id }, data: { isRead: req.body.isRead } });
   res.json(msg);
 });
@@ -47,6 +47,14 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
   await prisma.contactMessage.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
+});
+
+// Bulk delete
+router.post('/bulk-delete', requireRole('SUPER_ADMIN', 'MANAGER'), async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No IDs provided' });
+  await prisma.contactMessage.deleteMany({ where: { id: { in: ids } } });
+  res.json({ ok: true, deleted: ids.length });
 });
 
 module.exports = router;

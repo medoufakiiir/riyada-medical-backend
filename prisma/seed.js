@@ -16,6 +16,7 @@ async function main() {
     { email: 'manager2@riyada-ventures.com',     name: 'Manager 2',      role: 'MANAGER' },
     { email: 'reception1@riyada-ventures.com',   name: 'Receptionist 1', role: 'RECEPTIONIST' },
     { email: 'reception2@riyada-ventures.com',   name: 'Receptionist 2', role: 'RECEPTIONIST' },
+    { email: 'marketing@riyada-ventures.com',    name: 'Marketing',      role: 'MARKETING' },
   ];
 
   console.log('\n══════════════════════════════════════════');

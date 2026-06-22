@@ -47,6 +47,8 @@ app.use('/admin/team',      require('./routes/team'));
 app.use('/admin/users',     require('./routes/users'));
 app.use('/admin/settings',  require('./routes/settings'));
 app.use('/admin/chatbot',   require('./routes/chatbot-admin'));
+app.use('/admin/analytics', require('./routes/analytics'));
+app.use('/admin/contacts',  require('./routes/contacts'));
 app.use('/chat',            require('./routes/chat'));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
