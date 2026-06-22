@@ -51,6 +51,24 @@ router.post('/contact', async (req, res) => {
   res.status(201).json({ message: msg });
 });
 
+// GET /availability — public, returns blocked dates/times + booked slots
+router.get('/availability', async (_req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const blocked = await prisma.blockedSlot.findMany({
+      where: { date: { gte: today } },
+      select: { date: true, time: true },
+    });
+    const bookings = await prisma.booking.findMany({
+      where: { date: { gte: today }, status: { not: 'cancelled' } },
+      select: { date: true, time: true },
+    });
+    res.json({ blocked, bookings });
+  } catch {
+    res.json({ blocked: [], bookings: [] });
+  }
+});
+
 // POST /track — lightweight page view tracking
 router.post('/track', async (req, res) => {
   try {

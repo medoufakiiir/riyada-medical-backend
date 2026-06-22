@@ -50,6 +50,26 @@ router.get('/bookings', async (req, res) => {
   }
 });
 
+// ── BLOCKED SLOTS ──
+router.get('/blocked', async (_req, res) => {
+  const slots = await prisma.blockedSlot.findMany({ orderBy: { date: 'asc' } });
+  res.json(slots);
+});
+
+router.post('/blocked', async (req, res) => {
+  const { date, time, reason } = req.body;
+  if (!date) return res.status(400).json({ error: 'Date is required' });
+  const slot = await prisma.blockedSlot.create({
+    data: { date, time: time || null, reason: reason || '' },
+  });
+  res.status(201).json(slot);
+});
+
+router.delete('/blocked/:id', async (req, res) => {
+  await prisma.blockedSlot.delete({ where: { id: req.params.id } }).catch(() => {});
+  res.json({ ok: true });
+});
+
 // ── GET /admin/calendar/status — connection status ──
 router.get('/status', async (req, res) => {
   try {
